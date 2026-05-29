@@ -1,6 +1,6 @@
 [project]
 name = "trenitalia-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "Async + sync Python client for the public ViaggiaTreno (Trenitalia) API."
 readme = "README.md"
 license = { file = "LICENSE" }
