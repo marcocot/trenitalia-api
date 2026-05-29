@@ -13,7 +13,14 @@ import httpx
 import pytest
 import respx
 
-from tests.conftest import INFOMOBILITY_HTML, SEARCH_BODY, status_payload
+from tests.conftest import (
+    INFOMOBILITY_HTML,
+    SEARCH_BODY,
+    STATION_AUTOCOMPLETE_BODY,
+    departure_payload,
+    station_detail_payload,
+    status_payload,
+)
 from trenitalia_api import AsyncClient, ConnectionError, NotFoundError, UpstreamError
 
 BASE = "http://api.test/viaggiatreno"
@@ -97,6 +104,33 @@ class TestAlerts:
         )
         with pytest.raises(ConnectionError):
             await aclient.alerts.list()
+
+
+class TestStations:
+    @respx.mock
+    async def test_autocomplete(self, aclient: AsyncClient) -> None:
+        respx.get(f"{BASE}/autocompletaStazione/moncalieri").mock(
+            return_value=httpx.Response(200, text=STATION_AUTOCOMPLETE_BODY),
+        )
+        matches = await aclient.stations.autocomplete("moncalieri")
+        assert [m.station_id for m in matches] == ["S00453", "S00510"]
+
+    @respx.mock
+    async def test_detail_resolves_region_automatically(self, aclient: AsyncClient) -> None:
+        respx.get(f"{BASE}/regione/S00453").mock(return_value=httpx.Response(200, json=3))
+        respx.get(f"{BASE}/dettaglioStazione/S00453/3").mock(
+            return_value=httpx.Response(200, json=station_detail_payload()),
+        )
+        detail = await aclient.stations.detail("S00453")
+        assert detail.region_id == 3
+
+    @respx.mock
+    async def test_departures(self, aclient: AsyncClient) -> None:
+        respx.get(url__regex=rf"{BASE}/partenze/S00453/.+").mock(
+            return_value=httpx.Response(200, json=[departure_payload()]),
+        )
+        trains = await aclient.stations.departures("S00453")
+        assert trains[0].train_number == 26612
 
 
 @respx.mock

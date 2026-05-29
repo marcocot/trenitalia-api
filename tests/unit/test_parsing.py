@@ -6,10 +6,22 @@ from datetime import date
 
 import pytest
 
-from tests.conftest import INFOMOBILITY_HTML, SEARCH_BODY, status_payload
+from tests.conftest import (
+    INFOMOBILITY_HTML,
+    SEARCH_BODY,
+    STATION_AUTOCOMPLETE_BODY,
+    arrival_payload,
+    departure_payload,
+    station_detail_payload,
+    status_payload,
+)
 from trenitalia_api._parsing import (
     parse_infomobility_response,
     parse_search_response,
+    parse_station_autocomplete,
+    parse_station_detail,
+    parse_station_region,
+    parse_station_trains,
     parse_status_response,
 )
 from trenitalia_api.exceptions import InvalidResponseError
@@ -115,3 +127,103 @@ class TestParseInfomobilityResponse:
         </ul>
         """
         assert parse_infomobility_response(html) == []
+
+
+class TestParseStationAutocomplete:
+    def test_two_matches(self) -> None:
+        matches = parse_station_autocomplete(STATION_AUTOCOMPLETE_BODY)
+        assert len(matches) == 2
+        assert matches[0].name == "MONCALIERI"
+        assert matches[0].station_id == "S00453"
+        assert matches[1].name == "MONCALIERI SANGONE"
+        assert matches[1].station_id == "S00510"
+
+    def test_skips_empty_and_separator_less_lines(self) -> None:
+        body = "MONCALIERI|S00453\n\nno-pipe-here\n|\nFOO|S99999\n"
+        matches = parse_station_autocomplete(body)
+        assert [m.station_id for m in matches] == ["S00453", "S99999"]
+
+    def test_empty_body_yields_empty_list(self) -> None:
+        assert parse_station_autocomplete("") == []
+
+    def test_name_with_pipe_is_split_on_the_last_pipe(self) -> None:
+        # Unlikely but defensive — rsplit lets the ID stay intact.
+        matches = parse_station_autocomplete("FOO|BAR|S00001\n")
+        assert matches[0].name == "FOO|BAR"
+        assert matches[0].station_id == "S00001"
+
+
+class TestParseStationRegion:
+    def test_int_passthrough(self) -> None:
+        assert parse_station_region(3) == 3
+
+    def test_zero_is_valid(self) -> None:
+        assert parse_station_region(0) == 0
+
+    def test_string_rejected(self) -> None:
+        with pytest.raises(InvalidResponseError):
+            parse_station_region("3")
+
+    def test_bool_rejected(self) -> None:
+        # ``bool`` is a subclass of ``int`` — guard against silent acceptance.
+        with pytest.raises(InvalidResponseError):
+            parse_station_region(True)
+
+
+class TestParseStationDetail:
+    def test_valid_payload(self) -> None:
+        detail = parse_station_detail(station_detail_payload())
+        assert detail.station_id == "S00453"
+        assert detail.region_id == 3
+        assert detail.latitude == 44.998187
+        assert detail.longitude == 7.678027
+        assert detail.name == "MONCALIERI"
+        assert detail.label == "Moncalieri"
+
+    def test_non_dict_rejected(self) -> None:
+        with pytest.raises(InvalidResponseError, match="JSON object"):
+            parse_station_detail([1, 2])
+
+    def test_missing_localita_falls_back_to_empty_strings(self) -> None:
+        payload = station_detail_payload()
+        del payload["localita"]
+        # Without localita, name/short_name/label come up missing entirely → validation fails.
+        with pytest.raises(InvalidResponseError, match="validation"):
+            parse_station_detail(payload)
+
+
+class TestParseStationTrains:
+    def test_departure(self) -> None:
+        trains = parse_station_trains([departure_payload()])
+        assert len(trains) == 1
+        t = trains[0]
+        assert t.train_number == 26612
+        assert t.destination == "TORINO AEROPORTO DI CASELLE"
+        assert t.scheduled_departure == "10:58"
+        assert t.scheduled_arrival is None
+        assert t.actual_departure_platform == "5"
+        assert t.delay == 2
+
+    def test_arrival(self) -> None:
+        trains = parse_station_trains([arrival_payload()])
+        t = trains[0]
+        assert t.origin == "ASTI"
+        assert t.scheduled_arrival == "10:57"
+        assert t.scheduled_departure is None
+        assert t.actual_arrival_platform == "5"
+
+    def test_empty_list(self) -> None:
+        assert parse_station_trains([]) == []
+
+    def test_non_list_rejected(self) -> None:
+        with pytest.raises(InvalidResponseError, match="JSON array"):
+            parse_station_trains({"not": "a list"})
+
+    def test_extra_fields_ignored(self) -> None:
+        payload = departure_payload(extraGarbage="x", compRitardo=["delay 2 min."])
+        trains = parse_station_trains([payload])
+        assert trains[0].train_number == 26612
+
+    def test_validation_failure_raises(self) -> None:
+        with pytest.raises(InvalidResponseError, match="validation"):
+            parse_station_trains([{"garbage": True}])

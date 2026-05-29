@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import httpx
 import pytest
 import respx
 
-from tests.conftest import INFOMOBILITY_HTML, SEARCH_BODY, status_payload
+from tests.conftest import (
+    INFOMOBILITY_HTML,
+    SEARCH_BODY,
+    STATION_AUTOCOMPLETE_BODY,
+    departure_payload,
+    station_detail_payload,
+    status_payload,
+)
 from trenitalia_api import (
     APIError,
     Client,
@@ -144,3 +154,102 @@ class TestAlerts:
         )
         with pytest.raises(UpstreamError):
             client.alerts.list()
+
+
+class TestStations:
+    @respx.mock
+    def test_autocomplete(self, client: Client) -> None:
+        respx.get(f"{BASE}/autocompletaStazione/moncalieri").mock(
+            return_value=httpx.Response(200, text=STATION_AUTOCOMPLETE_BODY),
+        )
+        matches = client.stations.autocomplete("moncalieri")
+        assert [m.station_id for m in matches] == ["S00453", "S00510"]
+
+    @respx.mock
+    def test_region(self, client: Client) -> None:
+        respx.get(f"{BASE}/regione/S00453").mock(return_value=httpx.Response(200, json=3))
+        assert client.stations.region("S00453") == 3
+
+    @respx.mock
+    def test_detail_with_explicit_region(self, client: Client) -> None:
+        region_route = respx.get(f"{BASE}/regione/S00453")  # must NOT be hit
+        respx.get(f"{BASE}/dettaglioStazione/S00453/3").mock(
+            return_value=httpx.Response(200, json=station_detail_payload()),
+        )
+        detail = client.stations.detail("S00453", region=3)
+        assert detail.name == "MONCALIERI"
+        assert region_route.call_count == 0
+
+    @respx.mock
+    def test_detail_resolves_region_automatically(self, client: Client) -> None:
+        region_route = respx.get(f"{BASE}/regione/S00453").mock(
+            return_value=httpx.Response(200, json=3),
+        )
+        respx.get(f"{BASE}/dettaglioStazione/S00453/3").mock(
+            return_value=httpx.Response(200, json=station_detail_payload()),
+        )
+        detail = client.stations.detail("S00453")
+        assert detail.region_id == 3
+        assert region_route.call_count == 1
+
+    @respx.mock
+    def test_departures(self, client: Client) -> None:
+        # Match any ``when`` since the URL embeds the current timestamp.
+        respx.get(url__regex=rf"{BASE}/partenze/S00453/.+").mock(
+            return_value=httpx.Response(200, json=[departure_payload()]),
+        )
+        trains = client.stations.departures("S00453")
+        assert trains[0].destination == "TORINO AEROPORTO DI CASELLE"
+
+    @respx.mock
+    def test_arrivals_with_explicit_when(self, client: Client) -> None:
+        when = datetime(2026, 5, 29, 11, 12, 13, tzinfo=ZoneInfo("Europe/Rome"))
+        # Matches the JS Date.toString() format produced by ``_format_when``.
+        respx.get(url__regex=rf"{BASE}/arrivi/S00453/Fri%20May%2029%202026.+").mock(
+            return_value=httpx.Response(200, json=[]),
+        )
+        assert client.stations.arrivals("S00453", when=when) == []
+
+    @respx.mock
+    def test_autocomplete_upstream_failure(self, client: Client) -> None:
+        respx.get(f"{BASE}/autocompletaStazione/x").mock(return_value=httpx.Response(500))
+        with pytest.raises(UpstreamError):
+            client.stations.autocomplete("x")
+
+    @respx.mock
+    def test_region_rejects_non_int_payload(self, client: Client) -> None:
+        respx.get(f"{BASE}/regione/S00453").mock(
+            return_value=httpx.Response(200, json="three"),
+        )
+        with pytest.raises(InvalidResponseError):
+            client.stations.region("S00453")
+
+
+class TestFormatWhen:
+    def test_serializes_aware_datetime_in_js_format(self) -> None:
+        from trenitalia_api.resources.stations import _format_when
+
+        when = datetime(2026, 5, 29, 11, 12, 13, tzinfo=ZoneInfo("Europe/Rome"))
+        assert _format_when(when) == (
+            "Fri May 29 2026 11:12:13 GMT+0200 (Central European Summer Time)"
+        )
+
+    def test_serializes_winter_datetime_with_standard_time_label(self) -> None:
+        from trenitalia_api.resources.stations import _format_when
+
+        when = datetime(2026, 1, 15, 8, 0, 0, tzinfo=ZoneInfo("Europe/Rome"))
+        assert _format_when(when) == (
+            "Thu Jan 15 2026 08:00:00 GMT+0100 (Central European Standard Time)"
+        )
+
+    def test_naive_datetime_assumed_in_europe_rome(self) -> None:
+        from trenitalia_api.resources.stations import _format_when
+
+        when = datetime(2026, 5, 29, 11, 12, 13)
+        assert "GMT+0200" in _format_when(when)
+
+    def test_none_falls_back_to_now(self) -> None:
+        from trenitalia_api.resources.stations import _format_when
+
+        result = _format_when(None)
+        assert "GMT" in result

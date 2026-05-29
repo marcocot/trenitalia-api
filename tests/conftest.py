@@ -45,6 +45,74 @@ def status_payload(**overrides: object) -> dict[str, object]:
 SEARCH_BODY = "9642 - REGGIO DI CALABRIA CENTRALE - 05/03/26|9642-S11781-1772665200000"
 
 
+STATION_AUTOCOMPLETE_BODY = "MONCALIERI|S00453\nMONCALIERI SANGONE|S00510\n"
+
+
+def station_detail_payload(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "key": "S00453_3",
+        "codReg": 3,
+        "tipoStazione": 3,
+        "codiceStazione": "S00453",
+        "codStazione": "S00453",
+        "lat": 44.998187,
+        "lon": 7.678027,
+        "localita": {
+            "nomeLungo": "MONCALIERI",
+            "nomeBreve": "MONCALIERI",
+            "label": "Moncalieri",
+            "id": "S00453",
+        },
+        "esterno": False,
+    }
+    base.update(overrides)
+    return base
+
+
+def departure_payload(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "numeroTreno": 26612,
+        "compNumeroTreno": "REG 26612",
+        "categoria": "REG",
+        "compTipologiaTreno": "regionale",
+        "destinazione": "TORINO AEROPORTO DI CASELLE",
+        "codOrigine": "S00462",
+        "ritardo": 2,
+        "circolante": True,
+        "arrivato": True,
+        "nonPartito": False,
+        "inStazione": True,
+        "compOrarioPartenza": "10:58",
+        "binarioProgrammatoPartenzaDescrizione": "5",
+        "binarioEffettivoPartenzaDescrizione": "5",
+        "ultimoRilev": 1780045620000,
+    }
+    base.update(overrides)
+    return base
+
+
+def arrival_payload(**overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "numeroTreno": 26612,
+        "compNumeroTreno": "REG 26612",
+        "categoria": "REG",
+        "compTipologiaTreno": "regionale",
+        "origine": "ASTI",
+        "codOrigine": "S00462",
+        "ritardo": 2,
+        "circolante": True,
+        "arrivato": True,
+        "nonPartito": False,
+        "inStazione": True,
+        "compOrarioArrivo": "10:57",
+        "binarioProgrammatoArrivoDescrizione": "5",
+        "binarioEffettivoArrivoDescrizione": "5",
+        "ultimoRilev": 1780045620000,
+    }
+    base.update(overrides)
+    return base
+
+
 INFOMOBILITY_HTML = """
 <ul id="accordionGenericInfomob">
   <li class="editModeCollapsibleElement">

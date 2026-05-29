@@ -7,8 +7,16 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from tests.conftest import status_payload, stop_payload
-from trenitalia_api.models import ServiceAlert, TrainSearchResult, TrainStatus, TrainStop
+from tests.conftest import station_detail_payload, status_payload, stop_payload
+from trenitalia_api.models import (
+    ServiceAlert,
+    StationDetail,
+    StationMatch,
+    StationTrain,
+    TrainSearchResult,
+    TrainStatus,
+    TrainStop,
+)
 
 
 class TestTrainStop:
@@ -78,3 +86,54 @@ class TestServiceAlert:
     def test_non_string_fields_left_alone(self) -> None:
         a = ServiceAlert(title="t", body_html="b", published_on=date(2026, 1, 1), is_priority=False)
         assert a.published_on == date(2026, 1, 1)
+
+
+class TestStationMatch:
+    def test_construction(self) -> None:
+        m = StationMatch(name="MONCALIERI", station_id="S00453")
+        assert m.name == "MONCALIERI"
+
+
+class TestStationDetail:
+    def test_flattens_nested_localita(self) -> None:
+        detail = StationDetail.model_validate(station_detail_payload())
+        assert detail.name == "MONCALIERI"
+        assert detail.short_name == "MONCALIERI"
+        assert detail.label == "Moncalieri"
+
+    def test_reads_top_level_aliases(self) -> None:
+        detail = StationDetail.model_validate(station_detail_payload())
+        assert detail.station_id == "S00453"
+        assert detail.region_id == 3
+
+
+class TestStationTrain:
+    def test_departure_side(self) -> None:
+        t = StationTrain.model_validate(
+            {
+                "numeroTreno": 9999,
+                "compNumeroTreno": "REG 9999",
+                "categoria": "REG",
+                "destinazione": "ROMA",
+                "compOrarioPartenza": "12:00",
+                "binarioEffettivoPartenzaDescrizione": "3",
+            }
+        )
+        assert t.destination == "ROMA"
+        assert t.scheduled_departure == "12:00"
+        assert t.actual_departure_platform == "3"
+        assert t.origin is None
+        assert t.scheduled_arrival is None
+
+    def test_extra_keys_are_ignored(self) -> None:
+        t = StationTrain.model_validate(
+            {
+                "numeroTreno": 1,
+                "compNumeroTreno": "X 1",
+                "categoria": "REG",
+                "compRitardo": ["foreign", "garbage"],
+                "compOrientamento": ["--"] * 9,
+                "iconTreno": None,
+            }
+        )
+        assert t.train_number == 1
