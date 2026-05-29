@@ -13,8 +13,10 @@ import httpx
 from ._endpoints import DEFAULT_BASE_URL
 from .resources import (
     AsyncInfomobilityResource,
+    AsyncStationsResource,
     AsyncTrainsResource,
     InfomobilityResource,
+    StationsResource,
     TrainsResource,
 )
 
@@ -47,6 +49,7 @@ class Client:
 
         self.trains = TrainsResource(self._http, self._base_url)
         self.alerts = InfomobilityResource(self._http, self._base_url)
+        self.stations = StationsResource(self._http, self._base_url)
 
     def close(self) -> None:
         if self._owns_http:
@@ -89,6 +92,7 @@ class AsyncClient:
 
         self.trains = AsyncTrainsResource(self._http, self._base_url)
         self.alerts = AsyncInfomobilityResource(self._http, self._base_url)
+        self.stations = AsyncStationsResource(self._http, self._base_url)
 
     async def aclose(self) -> None:
         if self._owns_http:

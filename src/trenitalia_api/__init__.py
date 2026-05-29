@@ -10,9 +10,18 @@ from .exceptions import (
     TrenitaliaError,
     UpstreamError,
 )
-from .models import ServiceAlert, StopKind, TrainSearchResult, TrainStatus, TrainStop
+from .models import (
+    ServiceAlert,
+    StationDetail,
+    StationMatch,
+    StationTrain,
+    StopKind,
+    TrainSearchResult,
+    TrainStatus,
+    TrainStop,
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_BASE_URL",
@@ -23,6 +32,9 @@ __all__ = [
     "InvalidResponseError",
     "NotFoundError",
     "ServiceAlert",
+    "StationDetail",
+    "StationMatch",
+    "StationTrain",
     "StopKind",
     "TrainSearchResult",
     "TrainStatus",

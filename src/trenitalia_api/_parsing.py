@@ -14,7 +14,14 @@ from pydantic import ValidationError
 from selectolax.parser import HTMLParser, Node
 
 from .exceptions import InvalidResponseError
-from .models import ServiceAlert, TrainSearchResult, TrainStatus
+from .models import (
+    ServiceAlert,
+    StationDetail,
+    StationMatch,
+    StationTrain,
+    TrainSearchResult,
+    TrainStatus,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -127,3 +134,58 @@ def _inner_html(node: Node) -> str:
     if open_end == -1 or close_start <= open_end:
         return outer
     return outer[open_end + 1 : close_start]
+
+
+# ---------------------------------------------------------------------------
+# /autocompletaStazione/{q}
+# ---------------------------------------------------------------------------
+def parse_station_autocomplete(text: str) -> list[StationMatch]:
+    """Parse the ``NAME|ID`` newline-separated autocomplete reply."""
+    matches: list[StationMatch] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or "|" not in line:
+            continue
+        name, station_id = line.rsplit("|", 1)
+        name, station_id = name.strip(), station_id.strip()
+        if not name or not station_id:
+            continue
+        matches.append(StationMatch(name=name, station_id=station_id))
+    return matches
+
+
+# ---------------------------------------------------------------------------
+# /regione/{id}
+# ---------------------------------------------------------------------------
+def parse_station_region(payload: Any) -> int:
+    if isinstance(payload, bool) or not isinstance(payload, int):
+        raise InvalidResponseError(f"region payload must be an int, got {type(payload).__name__}")
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# /dettaglioStazione/{id}/{region}
+# ---------------------------------------------------------------------------
+def parse_station_detail(payload: Any) -> StationDetail:
+    if not isinstance(payload, dict):
+        raise InvalidResponseError(
+            f"station detail payload must be a JSON object, got {type(payload).__name__}"
+        )
+    try:
+        return StationDetail.model_validate(payload)
+    except ValidationError as exc:
+        raise InvalidResponseError(f"station detail failed validation: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# /partenze/{id}/{when} and /arrivi/{id}/{when}
+# ---------------------------------------------------------------------------
+def parse_station_trains(payload: Any) -> list[StationTrain]:
+    if not isinstance(payload, list):
+        raise InvalidResponseError(
+            f"timetable payload must be a JSON array, got {type(payload).__name__}"
+        )
+    try:
+        return [StationTrain.model_validate(item) for item in payload]
+    except ValidationError as exc:
+        raise InvalidResponseError(f"timetable entry failed validation: {exc}") from exc

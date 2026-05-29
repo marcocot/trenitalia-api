@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 StopKind = Literal["P", "F", "A"]
 """``P`` = departure (Partenza), ``F`` = intermediate (Fermata), ``A`` = arrival (Arrivo)."""
@@ -98,3 +98,77 @@ class ServiceAlert(_FrozenModel):
     @classmethod
     def _strip_strings(cls, value: object) -> object:
         return value.strip() if isinstance(value, str) else value
+
+
+class StationMatch(_FrozenModel):
+    """One entry of the station autocomplete result."""
+
+    name: str
+    station_id: str
+
+
+class StationDetail(_FrozenModel):
+    """Static information about a station."""
+
+    station_id: str = Field(alias="codiceStazione")
+    region_id: int = Field(alias="codReg")
+    latitude: float = Field(alias="lat")
+    longitude: float = Field(alias="lon")
+    name: str
+    short_name: str
+    label: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def _flatten_localita(cls, data: object) -> object:
+        if isinstance(data, dict) and isinstance(data.get("localita"), dict):
+            loc = data["localita"]
+            return {
+                **data,
+                "name": loc.get("nomeLungo", ""),
+                "short_name": loc.get("nomeBreve", ""),
+                "label": loc.get("label", ""),
+            }
+        return data
+
+
+class StationTrain(_FrozenModel):
+    """One row of a station's departures or arrivals timetable.
+
+    Fields specific to either side (e.g. ``origin`` for arrivals,
+    ``destination`` for departures, the various ``scheduled_*`` and
+    ``*_platform`` couples) are optional and populated only where the
+    upstream payload provides them.
+    """
+
+    train_number: int = Field(alias="numeroTreno")
+    train_label: str = Field(alias="compNumeroTreno")
+    category: str = Field(alias="categoria")
+    train_type: str | None = Field(alias="compTipologiaTreno", default=None)
+
+    delay: int = Field(alias="ritardo", default=0)
+    running: bool = Field(alias="circolante", default=False)
+    arrived: bool = Field(alias="arrivato", default=False)
+    not_departed: bool = Field(alias="nonPartito", default=False)
+    in_station: bool = Field(alias="inStazione", default=False)
+
+    origin: str | None = Field(alias="origine", default=None)
+    destination: str | None = Field(alias="destinazione", default=None)
+
+    scheduled_departure: str | None = Field(alias="compOrarioPartenza", default=None)
+    scheduled_arrival: str | None = Field(alias="compOrarioArrivo", default=None)
+
+    scheduled_departure_platform: str | None = Field(
+        alias="binarioProgrammatoPartenzaDescrizione", default=None
+    )
+    actual_departure_platform: str | None = Field(
+        alias="binarioEffettivoPartenzaDescrizione", default=None
+    )
+    scheduled_arrival_platform: str | None = Field(
+        alias="binarioProgrammatoArrivoDescrizione", default=None
+    )
+    actual_arrival_platform: str | None = Field(
+        alias="binarioEffettivoArrivoDescrizione", default=None
+    )
+
+    last_detection: int | None = Field(alias="ultimoRilev", default=None)
