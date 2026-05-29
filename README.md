@@ -36,6 +36,16 @@ asyncio.run(main())
 
 Service alerts: `client.alerts.list()`.
 
+Look up stations and check live timetables:
+
+```python
+with Client() as c:
+    matches = c.stations.autocomplete("moncalieri")
+    detail = c.stations.detail(matches[0].station_id)
+    for t in c.stations.departures(detail.station_id):
+        print(t.scheduled_departure, t.train_label, "→", t.destination)
+```
+
 Errors (network, 404, malformed payload) raise an exception. They all inherit from `TrenitaliaError`. See `trenitalia_api/exceptions.py`.
 
 ## Test
