@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work as documented.
+title: "[bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the unexpected behaviour.
+      placeholder: When I call `client.trains.status(...)` the library raises...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest snippet that triggers the issue.
+      render: python
+      placeholder: |
+        from trenitalia_api import Client
+
+        with Client() as c:
+            c.trains.search(9520)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.13"
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback or error output
+      render: shell

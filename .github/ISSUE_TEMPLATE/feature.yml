@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a new endpoint, model field, or convenience helper.
+title: "[feat]: "
+labels: [feature]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's missing today?
+      description: What would you like to do that the library doesn't support yet?
+    validations:
+      required: true
+
+  - type: textarea
+    id: api-sample
+    attributes:
+      label: Relevant ViaggiaTreno endpoint
+      description: If this is about a new endpoint, paste a sample `curl` and the response payload.
+      render: shell
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: How would the call look from a consumer's perspective?
+      render: python
