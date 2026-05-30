@@ -1,5 +1,11 @@
 # trenitalia-api
 
+[![PyPI version](https://img.shields.io/pypi/v/trenitalia-api.svg)](https://pypi.org/project/trenitalia-api/)
+[![Python versions](https://img.shields.io/pypi/pyversions/trenitalia-api.svg)](https://pypi.org/project/trenitalia-api/)
+[![CI](https://github.com/marcocot/trenitalia-api/actions/workflows/ci.yml/badge.svg)](https://github.com/marcocot/trenitalia-api/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/marcocot/trenitalia-api/branch/main/graph/badge.svg)](https://codecov.io/gh/marcocot/trenitalia-api)
+[![License: MIT](https://img.shields.io/pypi/l/trenitalia-api.svg)](https://github.com/marcocot/trenitalia-api/blob/main/LICENSE)
+
 Python client (sync + async) for the public ViaggiaTreno (Trenitalia) API.
 
 ## Install

@@ -63,10 +63,10 @@ jobs:
       - name: Run pytest
         run: uv run --python ${{ matrix.python }} pytest
 
-      - name: Upload coverage XML
+      - name: Upload coverage to Codecov
         if: matrix.python == '3.13'
-        uses: actions/upload-artifact@v4
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-xml
-          path: coverage.xml
-          if-no-files-found: ignore
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
